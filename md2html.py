@@ -5,7 +5,8 @@ md2html
 -----
 
 ## 内容
-   RAEDME.md ファイルを読み込んでhtml形式のプロトタイプを出力する。  
+   Markdownファイル（ファイル拡張子がmd)を読み込んでhtml形式のプロトタイプを出力する。  
+   変換できるものはmarkdownの一部の項目に限られる。（次節参照）  
    出力の文字コードはUTF-8で、改行は\r\nのwindows形式である。  
    Python3用。  
  
@@ -20,18 +21,20 @@ md2html
    8. 見出し。先頭行の次行が====,----のとき。
 
 ## スタイルシート
-   出力のhtmlファイルとの同じディレクトリーに　style.css　を置くこと。
+   出力のhtmlファイルとの同じディレクトリーに　style.css　を置くこと。  
     
 ## 動作方法
-    python3 md2html.py [file name ex: README.md]
+   python3 md2html.py [file name ex: README.md]
 
 ## 追加の操作
-   htmlヘッダー内の　title（デフォルト：<h1></h1>で囲まれた文字） とdescription（デフォルト：先頭の文章）を適時編集すること。
+   htmlヘッダー内の　title（デフォルト：<h1></h1>で囲まれた文字） とdescription（デフォルト：先頭の文章）を適時編集すること。  
+   html出力の中で不自然な箇所は適時 手修正すること。  
     
 ## その他
    強調、引用、水平線も未対応。  
    サブアイテムは未対応で、変換が不良となる。  
    python2の場合、文字コード変換やinputでエラーがでる。  
+   Ubuntu環境でUnicodeDecoderError:が発生した場合は、geditなどを使って入力ファイルのエンコーディングをUTF-8に変更すること。  
 
 """
 import sys
