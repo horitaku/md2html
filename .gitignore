@@ -1,5 +1,6 @@
 /__pycache__/
 /org1/
+/develop1/
 *.bat
 *.txt
 *.pyc

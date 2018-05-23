@@ -8,9 +8,11 @@ import sys
     2:[]() をhttpリンク(<a href)にする
     3:![]()　を画像参照(<img src)にする
     4:```で囲まれた部分をコード(<code>)扱いにする
-    5: -,+,* リスト表示(<ul><li>)にする
-    6:文末のスペース2個を<br />に変換する。但し、変換しない例外あり。
-    7:文章に<p> </p>を追加。但し、変換しない例外あり。
+    5:先頭に4個以上の空白があればコード(<code>)扱いにする
+    6: -,+,* リスト表示(<ul><li>)にする
+    7: 1. 2.  順番付きリストを(<ol><li>)にする
+    8:文末のスペース2個を<br />に変換する。但し、変換しない例外あり。
+    9:文章に<p> </p>を追加。但し、変換しない例外あり。
 
 """
 
@@ -62,7 +64,7 @@ def conv_img1(listx):
     s3=listx.find('(')
     s4=listx.find(')')
     if s1 >= 0:
-        if s2 >s1 and s3 > s2 and s4 > s3:
+        if s2 >s1 and s3 > s2 and s4 > s3 and (s4-s3)> 1:  # 条件に()が空白の場合を追加
             #print ( listx[s1+2:s2], listx[s3+1:s4] )
             #print (listx[0:s1] + listx[s4+1:])
             list1= '<img src="' + listx[s3+1:s4] + '"' + ' alt="' + listx[s1+2:s2] + '" >'
@@ -90,7 +92,7 @@ def conv_http1(listx):
     s4=listx.find(')')
     
     if s1 >= 0:
-        if s2 >s1 and s3 > s2 and s4 > s3:
+        if s2 >s1 and s3 > s2 and s4 > s3 and (s4-s3) > 1 : # 条件に()が空白の場合を追加
             #print ( listx[s1+1:s2], listx[s3+1:s4] )
             #print (listx[0:s1] + listx[s4+1:])
             list3= listx[s3+1:s4]
@@ -153,39 +155,142 @@ def conv_code(listxs):
             break
     return listxs
 
+def count_head_space(list0):
+    list1=str.lstrip(list0,' ')
+    len0=len(list0) - len(list1)
+    #print ('number of space ', len0)
+    return len0
 
-def conv_li1(listx):
-    # <li></li>だけ変換する　<ul></ul>タグは後で追加すること。
-    if listx.startswith('- '):
-        listx=listx.replace('- ','<li>',1)
-        listx=listx+'</li>'
-    elif listx.startswith('+ '):
-        listx=listx.replace('+ ','<li>',1)
-        listx=listx+'</li>'
-    elif listx.startswith('* '):
-        listx=listx.replace('* ','<li>',1)
-        listx=listx+'</li>'
-    return listx
+
+def head_space_code1(listxs):
+    #　空白が4個以上ある行のとき　''' で囲む
+    s1=-1
+    s2=-1
+    n0=0
+    rt_code=False
+    for i,list0 in enumerate(listxs):
+        if s1 == -1 and count_head_space(list0) >= 4:
+            s1=i
+            s2=i
+            n0=count_head_space(list0)
+            rt_code=True
+        elif s1 > -1:
+            if count_head_space(list0) >= 4:
+                s2=i
+            else:
+                break
     
+    if rt_code:
+        for i in range(s1,s2+1):
+            listxs[i]= listxs[i][n0:] # 先頭の空白を削除する
+        listxs.insert(s1,'<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>')
+        listxs.insert(s2+2,'</code></pre></div></div>')
+    
+    
+    return listxs, rt_code
+    
+
+def conv_head_space_code(listxs):
+    # 先頭　空白4個以上の行をコードを変換する
+    while(True):
+        listxs, rt_code =head_space_code1(listxs)
+        if not rt_code :
+            break
+    return listxs
+
+
+
+
+
+
+def conv_li1(listx, state_list, i):
+    # <li></li>だけ変換する　<ul></ul>タグは後で追加すること。
+    state_li_start, state_hanging_indents, state_nest_indents = get_state_code()
+    
+    if state_list[i] == state_li_start:
+        listx = '<li>' + str.lstrip(listx[1:],' ')
+        if state_list[i+1] == state_hanging_indents:
+            listx= listx + '<br />'
+        else:
+            listx= listx + '</li>'
+    
+    if state_list[i] == state_hanging_indents  or state_list[i] == state_nest_indents:
+        if state_list[i+1] == state_hanging_indents :    # hangin indentsが継続中
+            listx= str.lstrip(listx,' ') 
+            if not (listx.startswith('- ') or listx.startswith('+ ') or listx.startswith('* ')): # リストでないとき
+                listx= str.lstrip(listx,' ') + '<br />'
+        elif state_list[i+1] == state_nest_indents :    # nest indentsが継続中
+            listx= str.lstrip(listx,' ') 
+            if not (listx.startswith('- ') or listx.startswith('+ ') or listx.startswith('* ')): # リストでないとき
+                listx= str.lstrip(listx,' ') + '<br />'
+        else:
+            listx= str.lstrip(listx,' ') + '</li>'
+    
+    return listx
+
+def get_state_code():
+    state_li_start=1
+    state_hanging_indents=3
+    state_nest_indents=4
+    return state_li_start, state_hanging_indents, state_nest_indents
+
 def conv_ul1(listxs):
     # <ul></ul>を1組分だけ変換する
     s1=-1
     s2=-1
+    hanging_indents=0
+    state_list = [0 for i in range( len(listxs)+1 )]
+    state_li_start, state_hanging_indents, state_nest_indents = get_state_code()
     rt_code=False
+    
+    nest_indents=-1
+    
     for i,list0 in enumerate(listxs):
         if s1== -1 and (list0.startswith('- ') or list0.startswith('+ ') or list0.startswith('* ')):
             s1=i
             s2=i
+            hanging_indents= count_head_space( list0[1:]) + 1
+            state_list[i]=state_li_start
+            # print ('...1st, list0, hanging_indents', list0, hanging_indents)
             rt_code=True
-        if s1 >-1 and not (list0.startswith('- ') or list0.startswith('+ ') or list0.startswith('* ')):
-            s2=i-1
-            break
-
+        elif s1 >-1:
+            if not (list0.startswith('- ') or list0.startswith('+ ') or list0.startswith('* ')):
+                if count_head_space( list0) == hanging_indents:
+                    state_list[i]=state_hanging_indents
+                    # print ('...hanging_indents')
+                    s2=i
+                else:
+                    # hanging_indentsに一致しないがindentsがある
+                    n0=count_head_space( list0)
+                    list2=list0[n0:]
+                    # 内部にlist宣言がある場合
+                    if (list2.startswith('- ') or list2.startswith('+ ') or list2.startswith('* ')):
+                        # nest list の先頭行のとき
+                        if state_list[i-1]==state_li_start:
+                            nest_indents=n0
+                            state_list[i]=state_nest_indents
+                            # print ('...nest_indents')
+                            s2=i
+                        elif n0==nest_indents:
+                            state_list[i]=state_nest_indents
+                            # print ('...nest_indents')
+                            s2=i
+                    else:
+                        s2=i-1
+                        break
+            else:
+                s2=i
+                hanging_indents= count_head_space( list0[1:]) + 1
+                state_list[i]=state_li_start
+                # print ('...next, list0, hanging_indents', list0, hanging_indents)
+    
+    
     if rt_code:
         for i in range(s1,s2+1):
-            listxs[i]=conv_li1(listxs[i])
+            listxs[i]=conv_li1(listxs[i], state_list, i)
         listxs.insert(s1,'<ul>')
-        listxs.insert(s2+2,'</ul>')
+        listxs[s2+1]= str.rstrip(listxs[s2+1],'</li>')  # </li>を次の</ul>行に移動
+        listxs.insert(s2+2,'</li></ul>')
     
     return listxs, rt_code
     
@@ -197,6 +302,52 @@ def conv_ul(listxs):
             break
     return listxs
 
+def check_olist(list0):
+    s1= list0.find('. ')   # 数字. を見つける
+    list1=list0
+    rtcode= False
+    if s1 > 0 and list0[0].isdigit() and list0[:s1].isdigit():  # . 前の部分が数字か
+        list1=list0[s1+2:]
+        rtcode=True
+    
+    return rtcode, list1
+
+def conv_li2(listx):
+    # <li></li>だけ変換する　<ol></ol>タグは後で追加すること。
+    _ , list1 = check_olist(listx)
+    listx='<li>' + list1 + '</li>'
+    return listx
+    
+def conv_ol1(listxs):
+    # <ol></ol>を1組分だけ変換する
+    s1=-1
+    s2=-1
+    rt_code=False
+    for i,list0 in enumerate(listxs):
+        rt_code1, _ = check_olist(list0)
+        if s1== -1 and rt_code1:
+            s1=i
+            s2=i
+            rt_code=True
+        if s1 >-1 and not rt_code1 :
+            s2=i-1
+            break
+
+    if rt_code:
+        for i in range(s1,s2+1):
+            listxs[i]=conv_li2(listxs[i])
+        listxs.insert(s1,'<ol>')
+        listxs.insert(s2+2,'</ol>')
+    
+    return listxs, rt_code
+    
+def conv_ol(listxs):
+    # <ol></ol>に変換する
+    while(True):
+        listxs, rt_code =conv_ol1(listxs)
+        if not rt_code :
+            break
+    return listxs
 
 def conv_br1(listx):
     # 1行の文末のスペース2個を<br />に変換する
@@ -227,6 +378,12 @@ def check_p_start(listx,state_code):
         state_code=2  # <ul> ～</ul>の間
         return False, state_code
     elif listx.startswith('</ul>'):
+        state_code=0
+        return False, state_code
+    elif listx.startswith('<ol>'):
+        state_code=2  # <ol> ～</ol>の間
+        return False, state_code
+    elif listx.startswith('</ol>'):
         state_code=0
         return False, state_code
     elif len(listx) == 0:  # 空白の行は無視する
@@ -290,8 +447,14 @@ def conv2html(lines0):
     # <ul></ul>に変換する
     listxs=conv_ul(listxs)
     
+    # <ol></ol>に変換する
+    listxs=conv_ol(listxs)
+    
     # 文末のスペース2個を<br />に変換する
     listxs=conv_br(listxs)
+    
+    # 先頭　空白4個以上の行をコードを変換する
+    listxs=conv_head_space_code(listxs)
     
     # <p></p>を挿入する
     listxs=conv_p(listxs)
@@ -339,34 +502,10 @@ def pre_conv1( listxs):
         listxs[0]= '# ' + listxs[0]
         del listxs[1]
     
-    #　空白が4個ある行のとき　''' で囲む
+    # TABを空白4個に変換する
     listxs2=[]
-    s1=-1
-    s2=-1
-    c0=0
-    for i,listxs0 in enumerate(listxs):
-        listxs1=listxs0
-        if listxs0.startswith('    ') and len(str.lstrip(listxs0)) > 0:  #　且つ、空白行でないとき
-            if s1 < 0: # 空白4個の開始
-                s1=i
-                s2=i
-            elif i > s1: # 2行目以降
-                s2=i
-            listxs1=str.lstrip(listxs0)  # 先頭の空白を削除する
-        elif s1 > 0: # 空白4個の終了
-            listxs2.insert(s1+c0,'```')
-            listxs2.append('```')
-            s1=-1
-            s2=-1
-            c0+=2  #　２行追加した分をカウント
-        
-        listxs2.append( listxs1)
-    
-    if s1 > 0:
-        listxs2.insert(s1+c0,'```')
-        listxs2.append('```')
-        s1=-1
-        s2=-1
+    for listxs0 in listxs:
+        listxs2.append(listxs0.expandtabs(4))
     
     # < >を特殊文字に置き換える
     listxs3=[]
@@ -376,4 +515,6 @@ def pre_conv1( listxs):
         listxs3.append(list0)
     
     return listxs3
+
+
 
