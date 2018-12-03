@@ -289,7 +289,8 @@ def conv_ul1(listxs):
         for i in range(s1,s2+1):
             listxs[i]=conv_li1(listxs[i], state_list, i)
         listxs.insert(s1,'<ul>')
-        listxs[s2+1]= str.rstrip(listxs[s2+1],'</li>')  # </li>を次の</ul>行に移動
+        listxs[s2+1]= str.rstrip(listxs[s2+1],'/li>')  # </li>を次の</ul>行に移動
+        listxs[s2+1]= str.rstrip(listxs[s2+1],'<')     # >が欠ける対策で２行に分ける
         listxs.insert(s2+2,'</li></ul>')
     
     return listxs, rt_code
