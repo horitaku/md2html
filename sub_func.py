@@ -13,6 +13,7 @@ import sys
     7: 1. 2.  順番付きリストを(<ol><li>)にする
     8:文末のスペース2個を<br />に変換する。但し、変換しない例外あり。
     9:文章に<p> </p>を追加。但し、変換しない例外あり。
+    10: 先頭が<br />の行は、そのまま出力する。
 
 """
 
@@ -387,6 +388,8 @@ def check_p_start(listx,state_code):
     elif listx.startswith('</ol>'):
         state_code=0
         return False, state_code
+    elif listx.startswith('<br />'): # 先頭が<br />の行
+        return False, state_code
     elif len(listx) == 0:  # 空白の行は無視する
         return False, state_code
     else:
@@ -509,13 +512,18 @@ def pre_conv1( listxs):
         listxs2.append(listxs0.expandtabs(4))
     
     # < >を特殊文字に置き換える
+    # 但し、先頭が<br />の行は変換しない
     listxs3=[]
     for list0 in listxs2:
-        list0=list0.replace('<','&lt;')
-        list0=list0.replace('>','&gt;')
-        listxs3.append(list0)
+        if not list0.startswith('<br />'):
+            list0=list0.replace('<','&lt;')
+            list0=list0.replace('>','&gt;')
+            listxs3.append(list0)
+        else:
+            listxs3.append(list0)
     
     return listxs3
+
 
 
 
